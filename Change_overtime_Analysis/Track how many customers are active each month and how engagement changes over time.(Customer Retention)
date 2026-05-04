@@ -1,1 +1,16 @@
+SELECT
+    DATETRUNC(month, order_date) AS order_month,
 
+    COUNT(DISTINCT customer_key) AS active_customers,
+
+    LAG(COUNT(DISTINCT customer_key)) 
+        OVER (ORDER BY DATETRUNC(month, order_date)) AS prev_customers,
+
+    COUNT(DISTINCT customer_key) 
+    - LAG(COUNT(DISTINCT customer_key)) 
+        OVER (ORDER BY DATETRUNC(month, order_date)) AS customer_change
+
+FROM gold.fact_sales
+WHERE order_date IS NOT NULL
+GROUP BY DATETRUNC(month, order_date)
+ORDER BY order_month;
