@@ -12,8 +12,8 @@ This repository contains a full-scale SQL data analytics project designed to sol
 
 # Project Structure
 
-- 1_Changes_Over_Time.sql: Analysis of sales evolution across different time periods.
-- 2_Cumulative_Analysis.sql: Logic for running totals and cumulative growth metrics.
-- 3_Performance_Analysis.sql: Code for identifying top/bottom performing entities.
-- 4_Data_Segmentation.sql: Scripts for customer and product tiering.
-- 5_Final_Reports.sql: Consolidated queries for stakeholder-ready reporting.
+- Changes_Over_Time.sql: Analysis of sales evolution across different time periods.
+- Cumulative_Analysis.sql: Logic for running totals and cumulative growth metrics.
+- Performance_Analysis.sql: Code for identifying top/bottom performing entities.
+- Data_Segmentation.sql: Scripts for customer and product tiering.
+- Final_Reports.sql: Consolidated queries for stakeholder-ready reporting.
