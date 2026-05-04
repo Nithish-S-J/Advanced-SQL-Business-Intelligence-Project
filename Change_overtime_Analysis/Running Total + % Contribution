@@ -1,0 +1,18 @@
+WITH monthly_sales AS (
+    SELECT
+        DATETRUNC(month, order_date) AS order_month,
+        SUM(sales_amount) AS total_sales
+    FROM gold.fact_sales
+    GROUP BY DATETRUNC(month, order_date)
+)
+
+SELECT
+    order_month,
+    total_sales,
+
+    SUM(total_sales) OVER (ORDER BY order_month) AS running_total,
+
+    total_sales * 1.0 / SUM(total_sales) OVER () AS pct_contribution
+
+FROM monthly_sales
+ORDER BY order_month;
