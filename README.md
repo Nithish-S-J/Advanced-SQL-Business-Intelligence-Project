@@ -1,3 +1,4 @@
+
 # Advanced-SQL-Business-Intelligence-Project
 
 This repository contains a full-scale SQL data analytics project designed to solve real-world business problems. Using a dataset focused on sales and customer behavior, the project progresses from basic data exploration to advanced analytical techniques like cumulative analysis, performance tracking, and customer segmentation.
@@ -17,3 +18,5 @@ This repository contains a full-scale SQL data analytics project designed to sol
 - Performance_Analysis.sql:  Code for identifying top/bottom performing entities.
 - Data_Segmentation.sql:  Scripts for customer and product tiering.
 - Final_Reports.sql:  Consolidated queries for stakeholder-ready reporting.
+
+![Roadmap_Preview](https://github.com/Nithish-S-J/Advanced-SQL-Business-Intelligence-Project/blob/main/Project_RoadMap.png)
