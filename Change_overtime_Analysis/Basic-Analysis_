@@ -1,0 +1,56 @@
+
+select
+datetrunc(month,order_date) as orderdate_year,
+sum(sales_amount) as total_sales,
+count(distinct customer_key) as total_cutomers,
+sum(quantity) as total_quantity
+
+from gold.fact_sales
+where order_date is not null
+group by  
+datetrunc(month,order_date)
+order by  
+datetrunc(month,order_date);
+
+- [Best_one]
+-------------------------------------------------------------------------------------------------------------------------------------------------------
+select
+datetrunc(year,order_date) as orderdate_year,
+sum(sales_amount) as total_sales,
+count(distinct customer_key) as total_cutomers,
+sum(quantity) as total_quantity
+
+from gold.fact_sales
+where order_date is not null
+group by  
+datetrunc(year,order_date)
+order by  
+datetrunc(year,order_date);
+-----------------------------------------------------------------------------------------------------------------------------------------------------
+
+select
+Format(order_date, 'yyyy/MM') as orderdate_year,
+sum(sales_amount) as total_sales,
+count(distinct customer_key) as total_cutomers,
+sum(quantity) as total_quantity
+
+from gold.fact_sales
+where order_date is not null
+group by  
+Format(order_date, 'yyyy/MM')
+order by  
+Format(order_date, 'yyyy/MM');
+
+----------------------------------------------------------------------------------------------------------------------------------------------------
+select
+year(order_date) as order_year,
+Month(order_date) as order_month,
+sum(sales_amount) as total_sales,
+count(distinct customer_key) as total_cutomers,
+sum(quantity) as total_quantity
+
+from gold.fact_sales
+where order_date is not null
+group by Month(order_date), year(order_date)
+order by Month(order_date), year(order_date) asc;
+
