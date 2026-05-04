@@ -1,0 +1,25 @@
+WITH monthly_sales AS (
+    SELECT
+        DATETRUNC(month, order_date) AS order_month,
+        SUM(sales_amount) AS total_sales
+    FROM gold.fact_sales
+    WHERE order_date IS NOT NULL
+    GROUP BY DATETRUNC(month, order_date)
+)
+
+SELECT
+    order_month,
+    total_sales,
+
+    LAG(total_sales) OVER (ORDER BY order_month) AS prev_month_sales,
+
+    total_sales - LAG(total_sales) OVER (ORDER BY order_month) AS growth_amount,
+
+    ROUND(
+        (total_sales - LAG(total_sales) OVER (ORDER BY order_month)) * 100.0
+        / NULLIF(LAG(total_sales) OVER (ORDER BY order_month), 0),
+        2
+    ) AS growth_percent
+
+FROM monthly_sales
+ORDER BY order_month;
