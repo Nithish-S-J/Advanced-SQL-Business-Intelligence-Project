@@ -1,0 +1,17 @@
+select *
+from 
+(
+select
+    order_date,
+    total_sales,
+    lag(total_sales) over(order by order_date) as previous_month_sales,
+    total_sales - lag(total_sales) over(order by order_date ) as sales_differenc
+from
+(
+    select
+        datetrunc(month, order_date) as order_date,
+        sum(sales_amount) as total_sales
+        from gold.fact_sales
+        group by datetrunc(month, order_date)
+)t
+)x where previous_month_sales is not null
