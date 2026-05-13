@@ -21,5 +21,100 @@ Highlights:
         - average monthly revenue
 
 ==============================================================
+-----------------------1) Base query retrieves core columns from tables------------------------------
 */
+
+with base_query as
+(
+select
+
+    f.order_number,
+    f.order_date,
+    f.customer_key,
+    f.sales_amount,
+    f.quantity,
+
+    p.product_key,
+    p.product_name,
+    p.category,
+    p.subcategory,
+    p.cost
+
+from gold.fact_sales as f
+
+left join gold.dim_products as p
+on f.product_key = p.product_key
+
+where order_date is not null
+)
+
+--------------------- 2) Product aggregations ; summarizes key metrics at product level------------------------------
+
+
+,product_aggregation as 
+(
+
+select 
+
+    product_key,
+    product_name,
+    category,
+    subcategory,
+    cost,
+
+    count(order_number) as totalorders,
+  sum(sales_amount) as totalsales,
+  sum(quantity) as totalquantity,
+  count(distinct customer_key) as totalcustomers,
+  max(order_date) as lastorder,
+  datediff(month, min(order_date), max(order_date)) as lifespan
+
+  from base_query
+  group by  product_key,
+            product_name,
+            category,
+            subcategory,
+            cost
+ )
+
+ select
+
+    product_key,
+    product_name,
+    category,
+    subcategory,
+    cost,
+
+    case
+        when totalsales > 50000 then 'High-Performer'
+        when totalsales between 10000 and 50000 then 'Mid-Range'
+        else 'Low-Performer'
+    end as product_segment,
+
+    totalorders,
+        totalsales,
+        totalquantity,
+        totalcustomers,
+        lastorder,
+        lifespan,
+
+------------- recency (months since last sale) -------------------------------------
+
+    datediff(month, lastorder,getdate()) as recency,
+
+--------------- compute average order revenue (AOR) ----------------------------
+    case
+        when totalorders = 0 then 0
+        else totalsales / totalorders
+    end as avg_order_revenue,
+
+--------------- compute average monthly revenue -----------------------------------
+
+    case
+        when lifespan = 0 then totalsales
+        else totalsales / lifespan
+    end as avg_monthly_revenue
+
+from product_aggregation
+
 
