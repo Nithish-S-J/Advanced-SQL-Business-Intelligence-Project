@@ -1,0 +1,330 @@
+
+/*
+==============================================================
+Customer Purchase Behavior & Product Loyalty Analysis
+==============================================================
+
+Objective:
+    Analyze:
+    - customer buying behavior
+    - loyalty patterns
+    - product preference
+    - revenue contribution
+    - churn risk
+    - YoY customer sales trends
+
+==============================================================
+*/
+
+--------------------------------------------------------------
+-- STEP 1 : BASE QUERY
+--------------------------------------------------------------
+
+WITH base_query AS (
+
+    SELECT
+
+        f.order_number,
+        f.order_date,
+        f.customer_key,
+        f.product_key,
+        f.sales_amount,
+        f.quantity,
+
+        c.customer_number,
+        CONCAT(c.first_name, ' ', c.last_name) AS customer_name,
+
+        p.product_name,
+        p.category,
+        p.subcategory
+
+    FROM gold.fact_sales AS f
+
+    LEFT JOIN gold.dim_customers AS c
+        ON f.customer_key = c.customer_key
+
+    LEFT JOIN gold.dim_products AS p
+        ON f.product_key = p.product_key
+
+    WHERE f.order_date IS NOT NULL
+),
+
+--------------------------------------------------------------
+-- STEP 2 : CUSTOMER AGGREGATION
+--------------------------------------------------------------
+
+customer_summary AS (
+
+    SELECT
+
+        customer_key,
+        customer_number,
+        customer_name,
+
+        COUNT(DISTINCT order_number) AS total_orders,
+
+        SUM(sales_amount) AS total_sales,
+
+        SUM(quantity) AS total_quantity,
+
+        COUNT(DISTINCT product_key) AS total_unique_products,
+
+        MIN(order_date) AS first_order_date,
+
+        MAX(order_date) AS last_order_date,
+
+        DATEDIFF(
+            month,
+            MIN(order_date),
+            MAX(order_date)
+        ) AS customer_lifespan_months,
+
+        ROUND(
+            SUM(sales_amount) * 1.0 /
+            NULLIF(COUNT(DISTINCT order_number), 0),
+            2
+        ) AS avg_order_value
+
+    FROM base_query
+
+    GROUP BY
+        customer_key,
+        customer_number,
+        customer_name
+),
+
+--------------------------------------------------------------
+-- STEP 3 : PURCHASE FREQUENCY ANALYSIS
+--------------------------------------------------------------
+
+customer_order_gap AS (
+
+    SELECT
+
+        customer_key,
+
+        DATEDIFF(
+            day,
+            order_date,
+            LEAD(order_date) OVER (
+                PARTITION BY customer_key
+                ORDER BY order_date
+            )
+        ) AS days_to_next_order
+
+    FROM base_query
+),
+
+customer_frequency AS (
+
+    SELECT
+
+        customer_key,
+
+        ROUND(
+            AVG(days_to_next_order * 1.0),
+            2
+        ) AS avg_days_between_orders
+
+    FROM customer_order_gap
+
+    GROUP BY customer_key
+),
+
+--------------------------------------------------------------
+-- STEP 4 : FAVORITE PRODUCT ANALYSIS
+--------------------------------------------------------------
+
+customer_product_sales AS (
+
+    SELECT
+
+        customer_key,
+        product_name,
+
+        SUM(quantity) AS total_product_quantity
+
+    FROM base_query
+
+    GROUP BY
+        customer_key,
+        product_name
+),
+
+favorite_product AS (
+
+    SELECT *
+
+    FROM (
+
+        SELECT
+
+            customer_key,
+            product_name,
+            total_product_quantity,
+
+            ROW_NUMBER() OVER (
+                PARTITION BY customer_key
+                ORDER BY total_product_quantity DESC
+            ) AS rn
+
+        FROM customer_product_sales
+
+    ) t
+
+    WHERE rn = 1
+),
+
+--------------------------------------------------------------
+-- STEP 5 : YEARLY CUSTOMER SALES
+--------------------------------------------------------------
+
+customer_yearly_sales AS (
+
+    SELECT
+
+        customer_key,
+
+        DATETRUNC(year, order_date) AS order_year,
+
+        SUM(sales_amount) AS yearly_sales
+
+    FROM base_query
+
+    GROUP BY
+        customer_key,
+        DATETRUNC(year, order_date)
+),
+
+customer_yoy AS (
+
+    SELECT
+
+        customer_key,
+        order_year,
+        yearly_sales,
+
+        LAG(yearly_sales) OVER (
+            PARTITION BY customer_key
+            ORDER BY order_year
+        ) AS previous_year_sales
+
+    FROM customer_yearly_sales
+),
+
+latest_yoy AS (
+
+    SELECT *
+
+    FROM (
+
+        SELECT
+
+            customer_key,
+            order_year,
+            yearly_sales,
+            previous_year_sales,
+
+            ROW_NUMBER() OVER (
+                PARTITION BY customer_key
+                ORDER BY order_year DESC
+            ) AS rn
+
+        FROM customer_yoy
+
+    ) t
+
+    WHERE rn = 1
+)
+
+--------------------------------------------------------------
+-- FINAL CUSTOMER ANALYTICS REPORT
+--------------------------------------------------------------
+
+SELECT
+
+    cs.customer_key,
+    cs.customer_number,
+    cs.customer_name,
+
+    cs.total_orders,
+    cs.total_sales,
+    cs.total_quantity,
+    cs.total_unique_products,
+
+    cs.first_order_date,
+    cs.last_order_date,
+
+    cs.customer_lifespan_months,
+
+    cs.avg_order_value,
+
+    cf.avg_days_between_orders,
+
+    fp.product_name AS favorite_product,
+
+    ----------------------------------------------------------
+    -- CUSTOMER SEGMENTATION
+    ----------------------------------------------------------
+
+    CASE
+
+        WHEN cs.total_sales >= 50000
+            THEN 'VIP'
+
+        WHEN cs.total_sales >= 10000
+            THEN 'Regular'
+
+        ELSE 'Low Value'
+
+    END AS customer_segment,
+
+    ----------------------------------------------------------
+    -- CHURN ANALYSIS
+    ----------------------------------------------------------
+
+    CASE
+
+        WHEN DATEDIFF(
+            month,
+            cs.last_order_date,
+            GETDATE()
+        ) > 6
+            THEN 'At Risk'
+
+        ELSE 'Active'
+
+    END AS churn_status,
+
+    ----------------------------------------------------------
+    -- YoY ANALYSIS
+    ----------------------------------------------------------
+
+    ly.order_year,
+
+    ly.yearly_sales,
+
+    ly.previous_year_sales,
+
+    ly.yearly_sales - ly.previous_year_sales AS yoy_growth,
+
+    ROUND(
+        (ly.yearly_sales - ly.previous_year_sales)
+        * 100.0 /
+        NULLIF(ly.previous_year_sales, 0),
+        2
+    ) AS yoy_growth_percent
+
+FROM customer_summary AS cs
+
+LEFT JOIN customer_frequency AS cf
+    ON cs.customer_key = cf.customer_key
+
+LEFT JOIN favorite_product AS fp
+    ON cs.customer_key = fp.customer_key
+
+LEFT JOIN latest_yoy AS ly
+    ON cs.customer_key = ly.customer_key
+
+ORDER BY cs.total_sales DESC;
+
